@@ -44,7 +44,31 @@ reaper apply "<url>" --no-autofill
 reaper apply --jd-file jd.txt
 ```
 
-Every run writes `applications/<company>-<role>-<date>/` containing:
+## Use without the Claude API (no key, no cost)
+
+The tailoring itself needs an LLM, but you don't have to pay for API calls — run the
+same three-prompt workflow in the free claude.ai chat and let Reaper handle the
+deterministic scaffolding:
+
+```bash
+# 1. Generate a ready-to-paste prompt bundle (no API call is made)
+reaper prompts "<url>"        # or: reaper prompts --jd-file jd.txt
+
+# 2. Open a fresh chat at claude.ai. Paste prompts/00_SYSTEM_PROMPT.md first,
+#    then send 01, 02, 03, 04 in order (see prompts/README.md).
+
+# 3. Save the LaTeX from step 03 to resume.tex, then compile it:
+reaper compile resume.tex
+```
+
+`reaper prompts` writes `applications/manual-<date>/` with the JD, the pre-screen,
+the `prompts/` bundle (system prompt + the four step prompts pre-filled with your
+JD), and `answer_pack.md` with the static identity/work-auth fields. The `prescreen`
+command and the base resumes in `reaper/data/` are also fully offline.
+
+## Use with the Claude API (fully automated)
+
+Every `apply` run writes `applications/<company>-<role>-<date>/` containing:
 
 | File | What it is |
 |------|-----------|

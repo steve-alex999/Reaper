@@ -165,6 +165,45 @@ def _extract_latex(text: str) -> tuple[str, str]:
     return "", text.strip()
 
 
+def _manual_prompt3() -> str:
+    return (
+        _prompt3("the base you chose in step 1 (swe or cybersecurity)")
+        + "\n\nIf you have not already, state which base you picked before the resume."
+    )
+
+
+def build_prompt_bundle(jd_text: str, prescreen: PreScreen) -> dict[str, str]:
+    """Assemble the manual, API-free prompt bundle.
+
+    Returns a filename -> content map: the locked system prompt plus the four
+    step prompts, each pre-filled with this JD. Paste them into any chat UI
+    (e.g. free claude.ai) in order; no API call is made here.
+    """
+    kb = load_knowledge_base()
+    return {
+        "00_SYSTEM_PROMPT.md": (
+            "Paste this ONCE as the first message (or as a Project/custom "
+            "instruction), then send the numbered prompts in order.\n\n"
+            + kb.system_prompt()
+        ),
+        "01_recruiter_analysis.md": _prompt1(prescreen, jd_text),
+        "02_experience_rewrite.md": _prompt2(jd_text),
+        "03_ats_resume.md": _manual_prompt3(),
+        "04_screener_answers.md": _screener_prompt(jd_text),
+        "README.md": (
+            "# Manual (no-API) workflow\n\n"
+            "1. Open a fresh chat at claude.ai (or any capable LLM).\n"
+            "2. Paste `00_SYSTEM_PROMPT.md` as the first message.\n"
+            "3. Send `01`, then `02`, then `03`, then `04`, in order, each as a "
+            "new message in the same chat.\n"
+            "4. Save the LaTeX from step 03 to `resume.tex`.\n"
+            "5. Compile it: `reaper compile resume.tex`.\n"
+            "6. Use the identity block from `answer_pack.md` plus your step-04 "
+            "answers to fill the form (or paste them into the ATS).\n"
+        ),
+    }
+
+
 def run_workflow(
     jd_text: str, prescreen: PreScreen, model: str | None = None
 ) -> WorkflowResult:

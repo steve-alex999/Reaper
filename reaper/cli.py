@@ -69,6 +69,59 @@ def cmd_prescreen(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_prompts(args: argparse.Namespace) -> int:
+    """API-free: emit the ready-to-paste prompt bundle for a manual chat run."""
+    posting = _load_posting(args)
+    _print_header(f"Fetched JD ({posting.method}, {len(posting.text)} chars)")
+    ps = prescreen(posting.text)
+    print(ps.summary())
+
+    # Imported here so this command never needs the anthropic package installed.
+    from reaper.workflow import build_prompt_bundle
+    from reaper.answer_pack import build_answer_pack
+
+    out_dir = APPLICATIONS_DIR / f"manual-{_dt.date.today().isoformat()}"
+    bundle_dir = out_dir / "prompts"
+    bundle_dir.mkdir(parents=True, exist_ok=True)
+
+    (out_dir / "jd.txt").write_text(posting.text, encoding="utf-8")
+    (out_dir / "prescreen.txt").write_text(ps.summary(), encoding="utf-8")
+    for name, content in build_prompt_bundle(posting.text, ps).items():
+        (bundle_dir / name).write_text(content, encoding="utf-8")
+
+    # The identity half of the answer pack is static; drop it now so only the
+    # tailored screener answers need to come back from the chat.
+    pack = build_answer_pack("(fill company)", "(fill role)", {})
+    (out_dir / "answer_pack.md").write_text(
+        pack.to_markdown("resume.pdf"), encoding="utf-8"
+    )
+
+    _print_header("Manual prompt bundle written")
+    print(f"  {bundle_dir}/  (paste 00 then 01-04 into claude.ai, in order)")
+    print(f"  {out_dir / 'answer_pack.md'}  (static identity fields)")
+    print("\nThen: save the step-03 LaTeX to resume.tex and run "
+          "`reaper compile resume.tex`.")
+    return 0
+
+
+def cmd_compile(args: argparse.Namespace) -> int:
+    """Compile a .tex the user got back from a manual run into a PDF."""
+    tex_path = Path(args.tex_file)
+    if not tex_path.exists():
+        print(f"No such file: {tex_path}", file=sys.stderr)
+        return 2
+    comp = compile_resume(
+        tex_path.read_text(encoding="utf-8"),
+        tex_path.parent,
+        stem=tex_path.stem,
+    )
+    print(comp.message)
+    if comp.pdf_path:
+        print(f"PDF: {comp.pdf_path}")
+        return 0
+    return 1
+
+
 def cmd_apply(args: argparse.Namespace) -> int:
     posting = _load_posting(args)
     _print_header(f"Fetched JD ({posting.method}, {len(posting.text)} chars)")
@@ -189,12 +242,25 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--jd-file", help="read the JD from a local file instead of a URL")
     sp.set_defaults(func=cmd_prescreen)
 
+    pr = sub.add_parser(
+        "prompts",
+        help="API-free: emit a paste-into-claude.ai prompt bundle (no API call)",
+    )
+    pr.add_argument("url", nargs="?", help="the job-application URL")
+    pr.add_argument("--jd-file", help="read the JD from a local file instead of a URL")
+    pr.set_defaults(func=cmd_prompts)
+
+    cp = sub.add_parser("compile", help="compile a .tex resume to PDF")
+    cp.add_argument("tex_file", help="path to the .tex file")
+    cp.set_defaults(func=cmd_compile)
+
     return p
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    if not getattr(args, "url", None) and not getattr(args, "jd_file", None):
+    # Commands that take a job posting must be given a URL or a --jd-file.
+    if hasattr(args, "url") and not args.url and not getattr(args, "jd_file", None):
         print("Provide a URL or --jd-file.", file=sys.stderr)
         return 2
     return args.func(args)
