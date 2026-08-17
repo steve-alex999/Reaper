@@ -1,0 +1,19 @@
+# Reaper output (each run writes a folder here)
+applications/*/
+!applications/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.fls
+*.fdb_latexmk

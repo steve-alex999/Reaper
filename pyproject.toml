@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reaper-jd"
+version = "0.1.0"
+description = "CLI that reaps a job-application link into a tailored resume, answer pack, and browser auto-fill."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic>=0.40",
+]
+
+[project.optional-dependencies]
+# Needed for JS-heavy JD fetching and browser auto-fill. In this environment
+# Chromium is pre-installed, so `playwright install` is not required.
+browser = ["playwright>=1.40"]
+
+[project.scripts]
+reaper = "reaper.cli:main"
+
+[tool.setuptools]
+packages = ["reaper"]
+
+[tool.setuptools.package-data]
+reaper = ["data/*.md", "data/*.tex"]
